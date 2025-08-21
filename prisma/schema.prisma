@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  admin
+  employee
+}
+
+model Customer {
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String? @db.VarChar(255)
+  phone_number String? @db.VarChar(50)
+  address      String? @db.Text
+
+  // relations
+  orders Order[]
+
+  @@map("customers")
+}
+
+model Product {
+  id                 String   @id @default(uuid()) @db.Uuid
+  code               String?  @db.VarChar(100)
+  name               String?  @db.VarChar(255)
+  model              String?  @db.VarChar(255)
+  year_of_production String?  @db.VarChar(50)
+  price              Decimal? @db.Decimal
+
+  // relations
+  orders Order[]
+
+  @@map("products")
+}
+
+model Service {
+  id    String   @id @default(uuid()) @db.Uuid
+  name  String?  @db.VarChar(255)
+  price Decimal? @db.Decimal
+
+  // relations
+  orders Order[]
+
+  @@map("services")
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String?   @db.VarChar(255)
+  password  String?   @db.VarChar(255)
+  user_type UserType? @map("type")
+  avatar    String?   @db.VarChar(255)
+
+  // relations
+  orders           Order[]
+  maintenance_logs MaintenanceLog[]
+
+  @@map("users")
+}
+
+model Order {
+  id          String   @id @default(uuid()) @db.Uuid
+  product_id  String?  @db.Uuid
+  service_id  String?  @db.Uuid
+  customer_id String?  @db.Uuid
+  user_id     String?  @db.Uuid
+  total_price Decimal? @db.Decimal
+  note        String?  @db.Text
+
+  // relations
+  product      Product?      @relation(fields: [product_id], references: [id])
+  service      Service?      @relation(fields: [service_id], references: [id])
+  customer     Customer?     @relation(fields: [customer_id], references: [id])
+  user         User?         @relation(fields: [user_id], references: [id])
+  // 1 - N
+  maintenances Maintenance[]
+
+  @@map("orders")
+}
+
+model Maintenance {
+  id               String    @id @default(uuid()) @db.Uuid
+  order_id         String?   @db.Uuid
+  date_maintenance DateTime? @db.Timestamptz
+
+  // relations
+  order Order?           @relation(fields: [order_id], references: [id])
+  logs  MaintenanceLog[]
+
+  @@map("maintenances")
+}
+
+model MaintenanceLog {
+  id             String  @id @default(uuid()) @db.Uuid
+  user_id        String? @db.Uuid
+  maintenance_id String? @db.Uuid
+  note           String? @db.Text
+
+  // relations
+  user        User?        @relation(fields: [user_id], references: [id])
+  maintenance Maintenance? @relation(fields: [maintenance_id], references: [id])
+
+  @@map("maintenance_logs")
+}
