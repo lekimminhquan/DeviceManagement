@@ -1,11 +1,43 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from './modules/prisma.module';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { PrismaModule } from './modules/prisma/prisma.module.js';
+import { UsersModule } from './modules/users/users.module.js';
+import { EmailsModule } from './modules/emails/emails.module.js';
+import { AuthMiddleware } from './modules/users/middleware/auth.middleware.js';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET ?? 'change-me',
+        signOptions: { expiresIn: '12h' },
+      }),
+    }),
+    PrismaModule,
+    EmailsModule,
+    UsersModule,
+  ],
+  providers: [AuthMiddleware],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .exclude(
+        { path: 'users/login', method: RequestMethod.POST },
+        { path: 'users/register', method: RequestMethod.POST },
+        { path: 'users/request-forgot-password', method: RequestMethod.POST },
+        { path: 'users/reset-password', method: RequestMethod.POST },
+        { path: 'users/refresh-token', method: RequestMethod.POST },
+        { path: 'users/welcome', method: RequestMethod.POST },
+      )
+      .forRoutes('*');
+  }
+}
