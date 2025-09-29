@@ -12,7 +12,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly emailsService: EmailsService,
-  ) {}
+  ) { }
 
   async requestForgotPassword(email: string): Promise<void> {
     const user = await this.prisma.user.findFirst({ where: { email } });
@@ -52,6 +52,7 @@ export class UsersService {
     });
   }
 
+
   async sendWelcome(email: string): Promise<void> {
     await this.emailsService.sendMail({
       to: email,
@@ -65,7 +66,7 @@ export class UsersService {
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({ where: { email } });
     if (existingUser) {
-      throw new BadRequestException('Email already exists');
+      throw new BadRequestException('Tài khoản email đã tồn tại');
     }
 
     // Hash password

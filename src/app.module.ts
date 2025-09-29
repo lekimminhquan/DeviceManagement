@@ -10,6 +10,7 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
+import { MSTModule } from './modules/common/MST/taxcode.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import {
     PrismaModule,
     EmailsModule,
     UsersModule,
+    MSTModule,
   ],
   providers: [AuthMiddleware],
 })
