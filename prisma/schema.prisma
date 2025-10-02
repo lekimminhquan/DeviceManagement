@@ -14,6 +14,7 @@ model User {
   user_type     UserType?      @map("type")
   avatar        String?        @db.VarChar(255)
   email         String         @db.VarChar(255)
+  disabled      Boolean        @default(false)
   refreshTokens RefreshToken[]
 
   @@map("users")
