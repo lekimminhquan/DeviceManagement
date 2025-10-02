@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: online-vina-backend
+    container_name: device-app
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Provide this via .env or keep default; ensure DB exists/migrated
+      DATABASE_URL: ${DATABASE_URL}
+      # Example JWT secret; override in .env
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - '3000:3000'
+    command: ['sh', '-lc', 'yarn prisma migrate deploy && node dist/main.js']
+
+volumes:
+  pgdata: {}
