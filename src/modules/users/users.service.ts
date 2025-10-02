@@ -1,10 +1,19 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmailsService } from '../emails/emails.service.js';
 import { UserType } from '@prisma/client';
 import * as crypto from 'crypto';
-import { RESET_PASSWORD_TOKEN_EXPIRES_IN, ACCESS_TOKEN_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_DAYS } from './constants/token';
+import {
+  RESET_PASSWORD_TOKEN_EXPIRES_IN,
+  ACCESS_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRES_DAYS,
+} from './constants/token';
 
 @Injectable()
 export class UsersService {
@@ -40,7 +49,9 @@ export class UsersService {
     const emailFromToken = decoded?.email;
     if (!emailFromToken) throw new BadRequestException('Email not found');
 
-    const user = await this.prisma.user.findFirst({ where: { email: emailFromToken } });
+    const user = await this.prisma.user.findFirst({
+      where: { email: emailFromToken },
+    });
     if (!user?.id) return;
 
     const bcrypt = await import('bcryptjs');
@@ -65,7 +76,7 @@ export class UsersService {
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({ where: { email } });
     if (existingUser) {
-      throw new BadRequestException('Email already exists');
+      throw new BadRequestException('Tài khoản email đã tồn tại');
     }
 
     // Hash password
@@ -88,11 +99,120 @@ export class UsersService {
     return user;
   }
 
+  async createUser(params: {
+    email: string;
+    password: string;
+    name?: string | null;
+    avatar?: string | null;
+    user_type?: UserType | null;
+  }) {
+    const { email, password, name, avatar, user_type } = params;
+    const existingUser = await this.prisma.user.findFirst({ where: { email } });
+    if (existingUser) {
+      throw new BadRequestException('Email đã tồn tại');
+    }
+
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const created = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name: name ?? email.split('@')[0],
+        avatar: avatar ?? null,
+        user_type: user_type ?? UserType.client,
+      },
+    });
+
+    return created;
+  }
+
+  async updateUser(
+    id: string,
+    params: {
+      email?: string;
+      password?: string;
+      name?: string | null;
+      avatar?: string | null;
+      user_type?: UserType | null;
+    },
+  ) {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) throw new NotFoundException('User không tồn tại');
+
+    const data: any = {};
+    if (typeof params.email !== 'undefined' && params.email !== target.email) {
+      const exists = await this.prisma.user.findFirst({
+        where: { email: params.email },
+      });
+      if (exists && exists.id !== id)
+        throw new BadRequestException('Email đã tồn tại');
+      data.email = params.email;
+    }
+    if (typeof params.name !== 'undefined') data.name = params.name;
+    if (typeof params.avatar !== 'undefined') data.avatar = params.avatar;
+    if (typeof params.user_type !== 'undefined')
+      data.user_type = params.user_type;
+
+    if (typeof params.password !== 'undefined' && params.password) {
+      const bcrypt = await import('bcryptjs');
+      data.password = await bcrypt.hash(params.password, 10);
+    }
+
+    const updated = await this.prisma.user.update({ where: { id }, data });
+    return updated;
+  }
+
+  async setUserDisabled(id: string, disabled: boolean) {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) throw new NotFoundException('User không tồn tại');
+
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { disabled } as any,
+    });
+
+    if (disabled) {
+      // revoke all refresh tokens upon disabling
+      await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+    }
+
+    return updated;
+  }
+
+  async listUsers() {
+    const users = await this.prisma.user.findMany({
+      orderBy: { email: 'asc' },
+      include: {
+        refreshTokens: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    return users.map((u: any) => {
+      const lastLoginAt = u.refreshTokens?.[0]?.createdAt ?? null;
+      const { refreshTokens, ...rest } = u;
+      return { ...rest, lastLoginAt };
+    });
+  }
+
+  async getUserDetail(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User không tồn tại');
+    return user;
+  }
+
   async login(email: string, password: string) {
     // Find user by email
     const user = await this.prisma.user.findFirst({ where: { email } });
     if (!user || !user.password) {
       throw new UnauthorizedException('Sai email hoặc password');
+    }
+
+    if ((user as any).disabled) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hoá');
     }
 
     // Verify password
@@ -105,7 +225,7 @@ export class UsersService {
     // Generate access token
     const access_token = await this.jwtService.signAsync(
       { userId: user.id, email: user.email },
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
     );
 
     // Generate refresh token
@@ -124,7 +244,7 @@ export class UsersService {
 
     return {
       access_token,
-      refresh_token: refreshTokenValue
+      refresh_token: refreshTokenValue,
     };
   }
 
@@ -132,7 +252,7 @@ export class UsersService {
     // Find refresh token in database
     const tokenRecord = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true }
+      include: { user: true },
     });
 
     if (!tokenRecord) {
@@ -143,20 +263,20 @@ export class UsersService {
     if (tokenRecord.expiresAt < new Date()) {
       // Delete expired token
       await this.prisma.refreshToken.delete({
-        where: { id: tokenRecord.id }
+        where: { id: tokenRecord.id },
       });
       throw new UnauthorizedException('Refresh token đã hết hạn');
     }
 
     // Delete old refresh token
     await this.prisma.refreshToken.delete({
-      where: { id: tokenRecord.id }
+      where: { id: tokenRecord.id },
     });
 
     // Generate new access token
     const access_token = await this.jwtService.signAsync(
       { userId: tokenRecord.user.id, email: tokenRecord.user.email },
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+      { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
     );
 
     // Generate new refresh token
@@ -175,8 +295,7 @@ export class UsersService {
 
     return {
       access_token,
-      refresh_token: newRefreshTokenValue
+      refresh_token: newRefreshTokenValue,
     };
   }
-
 }

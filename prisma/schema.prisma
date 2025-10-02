@@ -7,17 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserType {
-  admin
-  client
-  collaborator
-}
-
-enum TransactionType {
-  IMPORT
-  EXPORT
-}
-
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   name          String?        @db.VarChar(255)
@@ -25,6 +14,7 @@ model User {
   user_type     UserType?      @map("type")
   avatar        String?        @db.VarChar(255)
   email         String         @db.VarChar(255)
+  disabled      Boolean        @default(false)
   refreshTokens RefreshToken[]
 
   @@map("users")
@@ -59,9 +49,9 @@ model Product {
   name        String
   unit        String
   categoryId  Int?
+  inventories Inventory[]
   category    Category?                @relation(fields: [categoryId], references: [id])
   details     StockTransactionDetail[]
-  inventories Inventory[]
 
   @@map("products")
 }
@@ -71,8 +61,8 @@ model Warehouse {
   code         String             @unique
   name         String
   location     String?
-  transactions StockTransaction[]
   inventories  Inventory[]
+  transactions StockTransaction[]
 
   @@map("warehouses")
 }
@@ -81,40 +71,38 @@ model StockTransaction {
   id              Int                      @id @default(autoincrement())
   code            String                   @unique
   warehouseId     Int
-  warehouse       Warehouse                @relation(fields: [warehouseId], references: [id])
   transactionType TransactionType
   transactionDate DateTime
   note            String?
   createdAt       DateTime                 @default(now())
   details         StockTransactionDetail[]
+  warehouse       Warehouse                @relation(fields: [warehouseId], references: [id])
 
   @@map("stock_transactions")
 }
 
 model StockTransactionDetail {
-  id            Int      @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   transactionId Int
   productId     Int
   quantity      Decimal
   unitPrice     Decimal?
-
-  transaction StockTransaction @relation(fields: [transactionId], references: [id])
-  product     Product          @relation(fields: [productId], references: [id])
+  product       Product          @relation(fields: [productId], references: [id])
+  transaction   StockTransaction @relation(fields: [transactionId], references: [id])
 
   @@map("stock_transaction_details")
 }
 
 model Inventory {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   warehouseId Int
   productId   Int
-  quantity    Decimal  @default(0)
-  lastUpdated DateTime @default(now())
+  quantity    Decimal   @default(0)
+  lastUpdated DateTime  @default(now())
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  product   Product   @relation(fields: [productId], references: [id])
-
-  @@unique([warehouseId, productId]) // mỗi kho - sản phẩm chỉ có 1 dòng
+  @@unique([warehouseId, productId])
   @@map("inventories")
 }
 
@@ -124,8 +112,18 @@ model RefreshToken {
   userId    String   @db.Uuid
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+enum UserType {
+  admin
+  client
+  collaborator
+}
+
+enum TransactionType {
+  IMPORT
+  EXPORT
 }
