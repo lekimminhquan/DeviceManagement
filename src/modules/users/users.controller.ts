@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Query,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RequestForgotPasswordDto } from './dto/request-forgot-password.dto';
 import { SendWelcomeDto } from './dto/send-welcome.dto';
@@ -8,7 +19,15 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { User } from '@prisma/client';
-
+import { CreateUserDto } from './dto/create-user.dto';
+import {
+  ListApiResponse,
+  ListPaginatedResponse,
+} from '../../utils/types/list-api';
+import type { UserListItemDto } from './dto/user-list-item.dto';
+import { PaginationQueryDto } from '../../utils/types/pagination-query.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { DisableUserDto } from './dto/disable-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -41,9 +60,9 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() body: RegisterDto) {
     const user = await this.usersService.register(body.email, body.password);
-    return { 
+    return {
       message: 'Đăng ký thành công',
-      user: { id: user.id, email: user.email, name: user.name }
+      user: { id: user.id, email: user.email, name: user.name },
     };
   }
 
@@ -65,7 +84,7 @@ export class UsersController {
     return {
       message: 'Refresh token thành công',
       access_token: result.access_token,
-      refresh_token: result.refresh_token
+      refresh_token: result.refresh_token,
     };
   }
 
@@ -74,7 +93,49 @@ export class UsersController {
   async getMe(@CurrentUser() user: User) {
     return {
       message: 'Lấy thông tin user thành công',
-      user
+      user,
     };
+  }
+
+  // CRUD APIs
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() body: CreateUserDto) {
+    const user = await this.usersService.createUser(body);
+    return { message: 'Tạo user thành công', user };
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async list(
+    @Query() query: PaginationQueryDto,
+  ): Promise<ListPaginatedResponse<UserListItemDto>> {
+    const data = await this.usersService.listUsers({
+      q: query.q,
+      page: query.page,
+      page_size: query.page_size,
+    });
+    return { message: 'Lấy danh sách user thành công', data };
+  }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  async detail(@Param('id') id: string) {
+    const user = await this.usersService.getUserDetail(id);
+    return { message: 'Lấy chi tiết user thành công', user };
+  }
+
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  async update(@Param('id') id: string, @Body() body: UpdateUserDto) {
+    const user = await this.usersService.updateUser(id, body);
+    return { message: 'Cập nhật user thành công', user };
+  }
+
+  @Patch(':id/disabled')
+  @HttpCode(HttpStatus.OK)
+  async setDisabled(@Param('id') id: string, @Body() body: DisableUserDto) {
+    const user = await this.usersService.setUserDisabled(id, body.disabled);
+    return { message: 'Cập nhật trạng thái user thành công', user };
   }
 }
