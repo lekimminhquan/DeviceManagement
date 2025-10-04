@@ -17,15 +17,13 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
-import {
-  ListApiResponse,
-  ListPaginatedResponse,
-} from '../../utils/types/list-api';
+import { ListPaginatedResponse } from '../../utils/types/list-api';
 import type { UserListItemDto } from './dto/user-list-item.dto';
-import { PaginationQueryDto } from '../../utils/types/pagination-query.dto';
+import { UserListQueryDto } from './dto/user-list-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DisableUserDto } from './dto/disable-user.dto';
 
@@ -97,6 +95,15 @@ export class UsersController {
     };
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() body: LogoutDto) {
+    await this.usersService.logout(body.refresh_token);
+    return {
+      message: 'Đăng xuất thành công',
+    };
+  }
+
   // CRUD APIs
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -108,14 +115,23 @@ export class UsersController {
   @Get()
   @HttpCode(HttpStatus.OK)
   async list(
-    @Query() query: PaginationQueryDto,
+    @Query() query: UserListQueryDto,
   ): Promise<ListPaginatedResponse<UserListItemDto>> {
     const data = await this.usersService.listUsers({
       q: query.q,
       page: query.page,
       page_size: query.page_size,
+      active: query.active,
+      user_type: query.user_type,
     });
     return { message: 'Lấy danh sách user thành công', data };
+  }
+
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  async getStats() {
+    const stats = await this.usersService.getUserStats();
+    return { message: 'Lấy thống kê user thành công', data: stats };
   }
 
   @Get(':id')
