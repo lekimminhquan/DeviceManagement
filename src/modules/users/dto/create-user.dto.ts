@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -25,4 +26,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserType)
   user_type?: UserType;
+
+  @IsOptional()
+  @IsBoolean()
+  disabled?: boolean;
 }

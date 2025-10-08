@@ -105,8 +105,9 @@ export class UsersService {
     name?: string | null;
     avatar?: string | null;
     user_type?: UserType | null;
+    disabled?: boolean;
   }) {
-    const { email, password, name, avatar, user_type } = params;
+    const { email, password, name, avatar, user_type, disabled } = params;
     const existingUser = await this.prisma.user.findFirst({ where: { email } });
     if (existingUser) {
       throw new BadRequestException('Email đã tồn tại');
@@ -122,6 +123,7 @@ export class UsersService {
         name: name ?? email.split('@')[0],
         avatar: avatar ?? null,
         user_type: user_type ?? UserType.client,
+        disabled: disabled ?? false,
       },
     });
 
@@ -132,10 +134,10 @@ export class UsersService {
     id: string,
     params: {
       email?: string;
-      password?: string;
       name?: string | null;
       avatar?: string | null;
       user_type?: UserType | null;
+      disabled?: boolean;
     },
   ) {
     const target = await this.prisma.user.findUnique({ where: { id } });
@@ -154,11 +156,7 @@ export class UsersService {
     if (typeof params.avatar !== 'undefined') data.avatar = params.avatar;
     if (typeof params.user_type !== 'undefined')
       data.user_type = params.user_type;
-
-    if (typeof params.password !== 'undefined' && params.password) {
-      const bcrypt = await import('bcryptjs');
-      data.password = await bcrypt.hash(params.password, 10);
-    }
+    if (typeof params.disabled !== 'undefined') data.disabled = params.disabled;
 
     const updated = await this.prisma.user.update({ where: { id }, data });
     return updated;
@@ -179,6 +177,14 @@ export class UsersService {
     }
 
     return updated;
+  }
+
+  async deleteUser(id: string) {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) throw new NotFoundException('User không tồn tại');
+    await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+    await this.prisma.user.delete({ where: { id } });
+    return true;
   }
 
   async listUsers(params?: {
@@ -261,7 +267,8 @@ export class UsersService {
   async getUserDetail(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User không tồn tại');
-    return user;
+    const { password, ...rest } = user;
+    return rest;
   }
 
   async getUserStats() {

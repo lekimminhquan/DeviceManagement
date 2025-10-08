@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Delete,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RequestForgotPasswordDto } from './dto/request-forgot-password.dto';
@@ -153,5 +154,12 @@ export class UsersController {
   async setDisabled(@Param('id') id: string, @Body() body: DisableUserDto) {
     const user = await this.usersService.setUserDisabled(id, body.disabled);
     return { message: 'Cập nhật trạng thái user thành công', user };
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id') id: string) {
+    await this.usersService.deleteUser(id);
+    return { message: 'Xóa user thành công' };
   }
 }
