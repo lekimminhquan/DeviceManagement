@@ -34,7 +34,7 @@ export class UsersService {
     );
 
     const baseUrl = process.env.BASE_FE_URL ?? 'http://localhost:3000';
-    const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    const resetLink = `${baseUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
 
     await this.emailsService.sendMail({
       to: user ? email : (process.env.MAIL_DEV_REDIRECT ?? email),
@@ -105,8 +105,9 @@ export class UsersService {
     name?: string | null;
     avatar?: string | null;
     user_type?: UserType | null;
+    disabled?: boolean;
   }) {
-    const { email, password, name, avatar, user_type } = params;
+    const { email, password, name, avatar, user_type, disabled } = params;
     const existingUser = await this.prisma.user.findFirst({ where: { email } });
     if (existingUser) {
       throw new BadRequestException('Email đã tồn tại');
@@ -122,6 +123,7 @@ export class UsersService {
         name: name ?? email.split('@')[0],
         avatar: avatar ?? null,
         user_type: user_type ?? UserType.client,
+        disabled: disabled ?? false,
       },
     });
 
@@ -132,10 +134,10 @@ export class UsersService {
     id: string,
     params: {
       email?: string;
-      password?: string;
       name?: string | null;
       avatar?: string | null;
       user_type?: UserType | null;
+      disabled?: boolean;
     },
   ) {
     const target = await this.prisma.user.findUnique({ where: { id } });
@@ -154,11 +156,7 @@ export class UsersService {
     if (typeof params.avatar !== 'undefined') data.avatar = params.avatar;
     if (typeof params.user_type !== 'undefined')
       data.user_type = params.user_type;
-
-    if (typeof params.password !== 'undefined' && params.password) {
-      const bcrypt = await import('bcryptjs');
-      data.password = await bcrypt.hash(params.password, 10);
-    }
+    if (typeof params.disabled !== 'undefined') data.disabled = params.disabled;
 
     const updated = await this.prisma.user.update({ where: { id }, data });
     return updated;
@@ -181,29 +179,64 @@ export class UsersService {
     return updated;
   }
 
-  async listUsers(params?: { q?: string; page?: number; page_size?: number }) {
+  async deleteUser(id: string) {
+    const target = await this.prisma.user.findUnique({ where: { id } });
+    if (!target) throw new NotFoundException('User không tồn tại');
+    await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+    await this.prisma.user.delete({ where: { id } });
+    return true;
+  }
+
+  async listUsers(params?: {
+    q?: string;
+    page?: number;
+    page_size?: number;
+    active?: boolean;
+    user_type?: UserType;
+  }) {
     const page = Math.max(1, params?.page ?? 1);
     const pageSize = Math.max(1, Math.min(200, params?.page_size ?? 20));
     const skip = (page - 1) * pageSize;
 
-    const where: Prisma.UserWhereInput | undefined = params?.q
-      ? {
-          OR: [
-            {
-              name: {
-                contains: params.q,
-                mode: Prisma.QueryMode.insensitive,
-              },
+    // Build where clause with filters
+    const whereConditions: Prisma.UserWhereInput[] = [];
+
+    // Search condition
+    if (params?.q) {
+      whereConditions.push({
+        OR: [
+          {
+            name: {
+              contains: params.q,
+              mode: Prisma.QueryMode.insensitive,
             },
-            {
-              email: {
-                contains: params.q,
-                mode: Prisma.QueryMode.insensitive,
-              },
+          },
+          {
+            email: {
+              contains: params.q,
+              mode: Prisma.QueryMode.insensitive,
             },
-          ],
-        }
-      : undefined;
+          },
+        ],
+      });
+    }
+
+    // Active filter
+    if (params?.active !== undefined) {
+      whereConditions.push({
+        disabled: !params.active,
+      });
+    }
+
+    // User type filter
+    if (params?.user_type) {
+      whereConditions.push({
+        user_type: params.user_type,
+      });
+    }
+
+    const where: Prisma.UserWhereInput | undefined =
+      whereConditions.length > 0 ? { AND: whereConditions } : undefined;
 
     const [total, users] = await this.prisma.$transaction([
       this.prisma.user.count({ where }),
@@ -234,7 +267,25 @@ export class UsersService {
   async getUserDetail(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User không tồn tại');
-    return user;
+    const { password, ...rest } = user;
+    return rest;
+  }
+
+  async getUserStats() {
+    const [totalUsers, activeUsers, adminUsers, disabledUsers] =
+      await this.prisma.$transaction([
+        this.prisma.user.count(),
+        this.prisma.user.count({ where: { disabled: false } }),
+        this.prisma.user.count({ where: { user_type: 'admin' } }),
+        this.prisma.user.count({ where: { disabled: true } }),
+      ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      adminUsers,
+      disabledUsers,
+    };
   }
 
   async login(email: string, password: string) {
@@ -330,5 +381,22 @@ export class UsersService {
       access_token,
       refresh_token: newRefreshTokenValue,
     };
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    // Find refresh token in database
+    const tokenRecord = await this.prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+    });
+
+    // If token exists, delete it
+    if (tokenRecord) {
+      await this.prisma.refreshToken.delete({
+        where: { id: tokenRecord.id },
+      });
+    }
+
+    // Always return success, even if token doesn't exist
+    // This prevents information leakage about token validity
   }
 }
