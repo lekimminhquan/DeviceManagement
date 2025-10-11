@@ -11,6 +11,7 @@ import {
   RequestMethod,
 } from '@nestjs/common';
 import { MSTModule } from './modules/common/MST/taxcode.module.js';
+import { LandingpageModule } from './modules/landingpage/landingpage.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MSTModule } from './modules/common/MST/taxcode.module.js';
     EmailsModule,
     UsersModule,
     MSTModule,
+    LandingpageModule,
   ],
   providers: [AuthMiddleware],
 })
@@ -39,6 +41,7 @@ export class AppModule implements NestModule {
         { path: 'users/reset-password', method: RequestMethod.POST },
         { path: 'users/refresh-token', method: RequestMethod.POST },
         { path: 'users/welcome', method: RequestMethod.POST },
+        { path: 'landingpage', method: RequestMethod.GET },
       )
       .forRoutes('*');
   }
