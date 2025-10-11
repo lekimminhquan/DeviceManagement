@@ -128,7 +128,7 @@ enum TransactionType {
 }
 
 
-model SelectCard {
+model card {
   id             Int      @id @default(autoincrement())
   title          String
   description    String?
@@ -144,7 +144,7 @@ model SelectCard {
 }
 
 
-model TitlePage {
+model title_page {
   id            Int  @id @default(autoincrement())
   title          String
   description    String?
@@ -152,4 +152,11 @@ model TitlePage {
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+
+model meta_data {
+  id                  Int @id @default(autoincrement())
+  backgroundImage     String
+  page                String
 }
