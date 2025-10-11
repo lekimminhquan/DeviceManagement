@@ -10,8 +10,6 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
-import { MSTModule } from './modules/common/MST/taxcode.module.js';
-import { LandingpageModule } from './modules/landingpage/landingpage.module.js';
 
 @Module({
   imports: [
@@ -25,8 +23,6 @@ import { LandingpageModule } from './modules/landingpage/landingpage.module.js';
     PrismaModule,
     EmailsModule,
     UsersModule,
-    MSTModule,
-    LandingpageModule,
   ],
   providers: [AuthMiddleware],
 })

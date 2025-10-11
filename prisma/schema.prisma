@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserType {
+  admin
+  client
+  collaborator
+}
+
+enum TransactionType {
+  IMPORT
+  EXPORT
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   name          String?        @db.VarChar(255)
@@ -49,9 +60,9 @@ model Product {
   name        String
   unit        String
   categoryId  Int?
-  inventories Inventory[]
   category    Category?                @relation(fields: [categoryId], references: [id])
   details     StockTransactionDetail[]
+  inventories Inventory[]
 
   @@map("products")
 }
@@ -61,8 +72,8 @@ model Warehouse {
   code         String             @unique
   name         String
   location     String?
-  inventories  Inventory[]
   transactions StockTransaction[]
+  inventories  Inventory[]
 
   @@map("warehouses")
 }
@@ -71,38 +82,40 @@ model StockTransaction {
   id              Int                      @id @default(autoincrement())
   code            String                   @unique
   warehouseId     Int
+  warehouse       Warehouse                @relation(fields: [warehouseId], references: [id])
   transactionType TransactionType
   transactionDate DateTime
   note            String?
   createdAt       DateTime                 @default(now())
   details         StockTransactionDetail[]
-  warehouse       Warehouse                @relation(fields: [warehouseId], references: [id])
 
   @@map("stock_transactions")
 }
 
 model StockTransactionDetail {
-  id            Int              @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   transactionId Int
   productId     Int
   quantity      Decimal
   unitPrice     Decimal?
-  product       Product          @relation(fields: [productId], references: [id])
-  transaction   StockTransaction @relation(fields: [transactionId], references: [id])
+
+  transaction StockTransaction @relation(fields: [transactionId], references: [id])
+  product     Product          @relation(fields: [productId], references: [id])
 
   @@map("stock_transaction_details")
 }
 
 model Inventory {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   warehouseId Int
   productId   Int
-  quantity    Decimal   @default(0)
-  lastUpdated DateTime  @default(now())
-  product     Product   @relation(fields: [productId], references: [id])
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  quantity    Decimal  @default(0)
+  lastUpdated DateTime @default(now())
 
-  @@unique([warehouseId, productId])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, productId]) // mỗi kho - sản phẩm chỉ có 1 dòng
   @@map("inventories")
 }
 
@@ -112,52 +125,8 @@ model RefreshToken {
   userId    String   @db.Uuid
   expiresAt DateTime
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
-}
-
-enum UserType {
-  admin
-  client
-  collaborator
-}
-
-enum TransactionType {
-  IMPORT
-  EXPORT
-}
-
-
-model card {
-  id             Int      @id @default(autoincrement())
-  title          String
-  description    String?
-  content        String?
-  page           String
-  numericalOrder Int       @default(0)
-  icon           String?
-  image          String?
-  backgroundColor String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-
-model title_page {
-  id            Int  @id @default(autoincrement())
-  title          String
-  description    String?
-  page           String
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-
-model meta_data {
-  id                  Int @id @default(autoincrement())
-  backgroundImage     String
-  page                String
 }

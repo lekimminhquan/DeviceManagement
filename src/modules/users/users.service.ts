@@ -76,7 +76,7 @@ export class UsersService {
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({ where: { email } });
     if (existingUser) {
-      throw new BadRequestException('Tài khoản email đã tồn tại');
+      throw new BadRequestException('Email already exists');
     }
 
     // Hash password
