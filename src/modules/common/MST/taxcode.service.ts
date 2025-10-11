@@ -1,7 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
 import axios from "axios";
-import { load } from "cheerio";
 
 
 @Injectable()

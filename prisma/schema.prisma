@@ -127,3 +127,30 @@ enum TransactionType {
   IMPORT
   EXPORT
 }
+
+
+model SelectCard {
+  id             Int      @id @default(autoincrement())
+  title          String
+  description    String?
+  content        String?
+  page           String
+  numericalOrder Int       @default(0)
+  icon           String?
+  image          String?
+  backgroundColor String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+
+model TitlePage {
+  id            Int  @id @default(autoincrement())
+  title          String
+  description    String?
+  page           String
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
