@@ -20,21 +20,6 @@ model User {
   @@map("users")
 }
 
-model Page {
-  id          String  @id @default(uuid()) @db.Uuid
-  title       String? @db.VarChar(255)
-  description String? @db.VarChar(255)
-  slug        String? @db.VarChar(255)
-
-  @@map("pages")
-}
-
-model BlockUI {
-  id String @id @default(uuid()) @db.Uuid
-
-  @@map("block_ui")
-}
-
 model Category {
   id       Int       @id @default(autoincrement())
   name     String
@@ -145,22 +130,16 @@ model Card {
   @@map("cards")
 }
 
-model TitlePage {
-  id          Int     @id @default(autoincrement())
+model MetaData {
+  id              Int    @id @default(autoincrement())
   title       String
   description String?
-  page        String
+  backgroundImage String
+  page            String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@map("title_pages")
-}
-
-model MetaData {
-  id              Int    @id @default(autoincrement())
-  backgroundImage String
-  page            String
+  
 
   @@map("meta_data")
 }
