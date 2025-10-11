@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Query,
   HttpCode,
   HttpStatus,
   Param,
@@ -20,12 +19,6 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
-import {
-  ListApiResponse,
-  ListPaginatedResponse,
-} from '../../utils/types/list-api';
-import type { UserListItemDto } from './dto/user-list-item.dto';
-import { PaginationQueryDto } from '../../utils/types/pagination-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DisableUserDto } from './dto/disable-user.dto';
 
@@ -107,15 +100,9 @@ export class UsersController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async list(
-    @Query() query: PaginationQueryDto,
-  ): Promise<ListPaginatedResponse<UserListItemDto>> {
-    const data = await this.usersService.listUsers({
-      q: query.q,
-      page: query.page,
-      page_size: query.page_size,
-    });
-    return { message: 'Lấy danh sách user thành công', data };
+  async list() {
+    const users = await this.usersService.listUsers();
+    return { message: 'Lấy danh sách user thành công', users };
   }
 
   @Get(':id')

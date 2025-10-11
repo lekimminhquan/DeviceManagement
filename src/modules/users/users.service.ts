@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmailsService } from '../emails/emails.service.js';
-import { Prisma, UserType } from '@prisma/client';
+import { UserType } from '@prisma/client';
 import * as crypto from 'crypto';
 import {
   RESET_PASSWORD_TOKEN_EXPIRES_IN,
@@ -181,54 +181,21 @@ export class UsersService {
     return updated;
   }
 
-  async listUsers(params?: { q?: string; page?: number; page_size?: number }) {
-    const page = Math.max(1, params?.page ?? 1);
-    const pageSize = Math.max(1, Math.min(200, params?.page_size ?? 20));
-    const skip = (page - 1) * pageSize;
-
-    const where: Prisma.UserWhereInput | undefined = params?.q
-      ? {
-          OR: [
-            {
-              name: {
-                contains: params.q,
-                mode: Prisma.QueryMode.insensitive,
-              },
-            },
-            {
-              email: {
-                contains: params.q,
-                mode: Prisma.QueryMode.insensitive,
-              },
-            },
-          ],
-        }
-      : undefined;
-
-    const [total, users] = await this.prisma.$transaction([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
-        where,
-        orderBy: { email: 'asc' },
-        skip,
-        take: pageSize,
-        include: {
-          refreshTokens: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
+  async listUsers() {
+    const users = await this.prisma.user.findMany({
+      orderBy: { email: 'asc' },
+      include: {
+        refreshTokens: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
-      }),
-    ]);
-
-    const items = users.map((u: any) => {
-      const { password, ...rest } = u;
-      const lastLoginAt = rest.refreshTokens?.[0]?.createdAt ?? null;
-      const { refreshTokens, ...safe } = rest;
-      return { ...safe, lastLoginAt };
+      },
     });
-
-    return { total, page, page_size: pageSize, results: items };
+    return users.map((u: any) => {
+      const lastLoginAt = u.refreshTokens?.[0]?.createdAt ?? null;
+      const { refreshTokens, ...rest } = u;
+      return { ...rest, lastLoginAt };
+    });
   }
 
   async getUserDetail(id: string) {
