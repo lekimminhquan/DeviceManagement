@@ -1,15 +1,17 @@
 import { IsNotEmpty } from "class-validator";
 
-export class titlePageDto {
+
+export class metaDataDto {
     id?: number;
+    @IsNotEmpty()
+    backgroundImage: string;
+    @IsNotEmpty()
+    page: string;
     @IsNotEmpty()
     title: string;
     @IsNotEmpty()
     description: string;
-    @IsNotEmpty()
-    page: string;
 }
-
 export class selectCardDto {
     id?: number;
     @IsNotEmpty()
@@ -32,7 +34,7 @@ export class contentPageDto {
     @IsNotEmpty()
     page: string;
     @IsNotEmpty()
-    titlePage: titlePageDto;
+    metadata: metaDataDto;
     @IsNotEmpty()
     selectCards: selectCardDto[];
 }

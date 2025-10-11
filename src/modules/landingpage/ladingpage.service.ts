@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { contentPageDto } from './dto/content';
+import { contentPageDto, metaDataDto } from './dto/content';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -7,12 +7,12 @@ export class LandingpageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getLandingPageContent(page: string) {
-    const titlePage = await this.prisma.titlePage.findFirst({
+    const metadata = await this.prisma.metaData.findFirst({
       where: { page: page },
     });
     const content = await this.prisma.card.findMany({ where: { page: page } });
     return {
-      title: titlePage,
+      metadata: metadata,
       contentCards: content,
     };
   }
@@ -20,19 +20,20 @@ export class LandingpageService {
   async createAndUpdateContentLandingPage(body: contentPageDto, page: string) {
     try {
       await this.prisma.$transaction(async (context) => {
-        const titleData = {
-          title: body.titlePage.title,
-          description: body.titlePage.description,
+        const metadata: metaDataDto = {
+          backgroundImage: body.metadata.backgroundImage,
+          title: body.metadata.title,
+          description: body.metadata.description,
           page: page,
         };
 
         await Promise.all([
-          body.titlePage?.id
-            ? await context.titlePage.update({
-                where: { id: body.titlePage.id },
-                data: titleData,
+          body.metadata?.id
+            ? await context.metaData.update({
+                where: { id: body.metadata.id },
+                data: metadata,
               })
-            : await context.titlePage.create({ data: titleData }),
+            : await context.metaData.create({ data: metadata }),
         ]);
 
         await Promise.all(
