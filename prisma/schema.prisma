@@ -128,36 +128,39 @@ enum TransactionType {
   EXPORT
 }
 
-
-model card {
-  id             Int      @id @default(autoincrement())
-  title          String
-  description    String?
-  content        String?
-  page           String
-  numericalOrder Int       @default(0)
-  icon           String?
-  image          String?
+model Card {
+  id              Int     @id @default(autoincrement())
+  title           String
+  description     String?
+  content         String?
+  page            String
+  numericalOrder  Int     @default(0)
+  icon            String?
+  image           String?
   backgroundColor String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cards")
 }
 
+model TitlePage {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+  page        String
 
-model title_page {
-  id            Int  @id @default(autoincrement())
-  title          String
-  description    String?
-  page           String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  @@map("title_pages")
 }
 
+model MetaData {
+  id              Int    @id @default(autoincrement())
+  backgroundImage String
+  page            String
 
-model meta_data {
-  id                  Int @id @default(autoincrement())
-  backgroundImage     String
-  page                String
+  @@map("meta_data")
 }
